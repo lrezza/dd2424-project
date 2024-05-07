@@ -22,7 +22,7 @@ def run_test_harness():
     # define model
     model = define_model()
     # fit model, should eventually get validation data from training data
-    history = model.fit(trainX, trainY, epochs=10, batch_size=64, validation_data=(validX, validY), verbose=1)
+    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(validX, validY), verbose=1)
     # evaluate model
     _, acc = model.evaluate(testX, testY, verbose=1)
     print('> %.3f' % (acc * 100.0))
