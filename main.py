@@ -13,7 +13,8 @@ from keras.layers import Dropout  # Import Dropout layer
 from keras.optimizers import SGD
 from keras.regularizers import l2
 from keras.datasets import cifar10
-from keras.preprocessing.image import ImageDataGenerator
+#from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 def main():
@@ -58,14 +59,14 @@ def run_augmentation_harness():
     
     # fit model
     steps = int(trainX.shape[0] / 64)
-    history = model.fit_generator(it_train, steps_per_epoch=steps, epochs=100, 
-                                  validation_data=(validX, validY), verbose=1)
+    history = model.fit(it_train, steps_per_epoch=steps, epochs=100, 
+                        validation_data=(validX, validY), verbose=1)
     
     # evaluate model
     _, acc = model.evaluate(testX, testY, verbose=1)
     print('> %.3f' % (acc * 100.0))
     # learning curves
-    summarize_diagnostics(history, "data_augmentation_plot")
+    summarize_diagnostics(history, "data_augmentation")
 
 def define_model():
     """
