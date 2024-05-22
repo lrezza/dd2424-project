@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import scipy
 from matplotlib import pyplot
 from keras.datasets import cifar10
 from keras.utils import to_categorical
@@ -12,17 +13,21 @@ from keras.layers import Dropout  # Import Dropout layer
 from keras.optimizers import SGD
 from keras.regularizers import l2
 from keras.datasets import cifar10
+from keras.preprocessing.image import ImageDataGenerator
+
 
 def main():
-    run_test_harness()
+    # Choose which test harness to run
+    # run_test_harness() # Uncomment for original, dropout or weight decay model 
+    run_augmentation_harness() # Uncomment for data augmentation model
 
-# run the test harness for evaluating a model
+# run the test harness for evaluating a basic, dropout or weight decay model
 def run_test_harness():
     # load dataset
     (trainX, trainY), (validX, validY), (testX, testY) = load_dataset()
     
     # define model
-    # Choose between original, dropout, weight decay or data-augmentation model (uncomment desired)
+    # Choose between basic, dropout or weight decay model (uncomment desired)
     # model = define_model() # Basic model
     # model = dropout_model() # With dropout
     model = decay_model() # With weight decay
@@ -33,7 +38,34 @@ def run_test_harness():
     _, acc = model.evaluate(testX, testY, verbose=1)
     print('> %.3f' % (acc * 100.0))
     # learning curves
-    summarize_diagnostics(history, "weight_decay")
+    summarize_diagnostics(history, "test_plot")
+
+# run the test harness for evaluating a data augmentation model
+def run_augmentation_harness():
+    """
+    Updated test harness to support data augmentation.
+    """
+    # load dataset
+    (trainX, trainY), (validX, validY), (testX, testY) = load_dataset()
+
+    # define model
+    model = define_model() # Basic model
+
+    # create data generator
+    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
+    # prepare iterator
+    it_train = datagen.flow(trainX, trainY, batch_size=64)
+    
+    # fit model
+    steps = int(trainX.shape[0] / 64)
+    history = model.fit_generator(it_train, steps_per_epoch=steps, epochs=100, 
+                                  validation_data=(validX, validY), verbose=1)
+    
+    # evaluate model
+    _, acc = model.evaluate(testX, testY, verbose=1)
+    print('> %.3f' % (acc * 100.0))
+    # learning curves
+    summarize_diagnostics(history, "data_augmentation_plot")
 
 def define_model():
     """
@@ -131,9 +163,14 @@ def decay_model():
     model.add(Dense(10, activation='softmax'))
     
     # Compile model with SGD optimizer, categorical crossentropy loss, and accuracy metric
-    opt = SGD(lr=0.001, momentum=0.9)
+    opt = SGD(learning_rate=0.001, momentum=0.9)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
+
+def augmentation_model():
+    """
+    Define model with data augmentation.
+    """
 
 # plot diagnostic learning curves
 def summarize_diagnostics(history, filename):
