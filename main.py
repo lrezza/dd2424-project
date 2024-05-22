@@ -8,6 +8,7 @@ from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
 from keras.layers import Dense
 from keras.layers import Flatten
+from keras.layers import Dropout  # Import Dropout layer
 from keras.optimizers import SGD
 from keras.datasets import cifar10
 
@@ -20,16 +21,22 @@ def run_test_harness():
     (trainX, trainY), (validX, validY), (testX, testY) = load_dataset()
     
     # define model
-    model = define_model()
+    # Choose between original, dropout, weight decay or data-augmentation model (uncomment desired)
+    # model = define_model() # Basic model
+    model = dropout_model() # With dropout
+    
     # fit model, should eventually get validation data from training data
-    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(validX, validY), verbose=1)
+    history = model.fit(trainX, trainY, epochs=50, batch_size=64, validation_data=(validX, validY), verbose=1)
     # evaluate model
     _, acc = model.evaluate(testX, testY, verbose=1)
     print('> %.3f' % (acc * 100.0))
     # learning curves
-    summarize_diagnostics(history, "test_plot")
+    # summarize_diagnostics(history, "test_plot")
 
 def define_model():
+    """
+    Define basic model.
+    """
     model = Sequential()
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
@@ -48,6 +55,45 @@ def define_model():
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
+
+def dropout_model():
+    """
+    Define model with dropout.
+    """
+    model = Sequential()
+    model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
+    # Add dropout after the first convolutional layer
+    model.add(Dropout(0.20))  # We set dropout to %20 &retain %80 of nodes (can be adjusted)
+    
+    model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    model.add(MaxPooling2D((2, 2)))
+    
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    # Add dropout after the second set of convolutional layers
+    model.add(Dropout(0.20))  
+    
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    model.add(MaxPooling2D((2, 2)))
+    
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    # Add dropout after the third set of convolutional layers
+    model.add(Dropout(0.20))  
+    
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Flatten())
+    
+    model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
+    # Add dropout before the fully connected layer
+    model.add(Dropout(0.2))  # Adjust dropout rate as needed
+    
+    model.add(Dense(10, activation='softmax'))
+    # compile model
+    opt = SGD(learning_rate=0.001, momentum=0.9)
+    model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+"""
 # plot diagnostic learning curves
 def summarize_diagnostics(history, filename):
     pyplot.figure(figsize=(7, 8))
@@ -66,6 +112,7 @@ def summarize_diagnostics(history, filename):
     pyplot.legend()
     pyplot.savefig(filename + ".png")
     pyplot.close()
+"""
 
 #load cifar10 dataset into a a train and test set
 def load_dataset(valid_size=5000):
