@@ -131,7 +131,7 @@ def decay_model():
     model.add(Dense(10, activation='softmax'))
     
     # Compile model with SGD optimizer, categorical crossentropy loss, and accuracy metric
-    opt = SGD(lr=0.001, momentum=0.9)
+    opt = SGD(learning_rate=0.001, momentum=0.9)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
