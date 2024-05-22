@@ -10,6 +10,7 @@ from keras.layers import Dense
 from keras.layers import Flatten
 from keras.layers import Dropout  # Import Dropout layer
 from keras.optimizers import SGD
+from keras.regularizers import l2
 from keras.datasets import cifar10
 
 def main():
@@ -23,7 +24,8 @@ def run_test_harness():
     # define model
     # Choose between original, dropout, weight decay or data-augmentation model (uncomment desired)
     # model = define_model() # Basic model
-    model = dropout_model() # With dropout
+    # model = dropout_model() # With dropout
+    model = decay_model() # With weight decay
     
     # fit model, should eventually get validation data from training data
     history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(validX, validY), verbose=1)
@@ -31,7 +33,7 @@ def run_test_harness():
     _, acc = model.evaluate(testX, testY, verbose=1)
     print('> %.3f' % (acc * 100.0))
     # learning curves
-    summarize_diagnostics(history, "dropout")
+    summarize_diagnostics(history, "weight_decay")
 
 def define_model():
     """
@@ -93,6 +95,45 @@ def dropout_model():
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
+def decay_model():
+    """
+    Define model with weight decay.
+    """
+    model = Sequential()
+    weight_decay = 0.001 # Set weight decay to standard value (can be adjusted)
+    # First convolutional block with ReLU activation, He uniform initialization,
+    # same padding to maintain spatial dimensions, and L2 weight decay for regularization
+    model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform',
+                   padding='same', kernel_regularizer=l2(weight_decay), input_shape=(32, 32, 3)))
+    model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform',
+                   padding='same', kernel_regularizer=l2(weight_decay)))
+    model.add(MaxPooling2D((2, 2)))
+    
+    # Second convolutional block with the same configuration as the first block
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform',
+                   padding='same', kernel_regularizer=l2(weight_decay)))
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform',
+                   padding='same', kernel_regularizer=l2(weight_decay)))
+    model.add(MaxPooling2D((2, 2)))
+    
+    # Third convolutional block with the same configuration
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform',
+                   padding='same', kernel_regularizer=l2(weight_decay)))
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform',
+                   padding='same', kernel_regularizer=l2(weight_decay)))
+    model.add(MaxPooling2D((2, 2)))
+    
+    model.add(Flatten())
+    
+    # Dense layer with ReLU activation, He uniform initialization, and L2 weight decay
+    model.add(Dense(128, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=l2(weight_decay)))
+    
+    model.add(Dense(10, activation='softmax'))
+    
+    # Compile model with SGD optimizer, categorical crossentropy loss, and accuracy metric
+    opt = SGD(lr=0.001, momentum=0.9)
+    model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
 
 # plot diagnostic learning curves
 def summarize_diagnostics(history, filename):
@@ -112,7 +153,6 @@ def summarize_diagnostics(history, filename):
     pyplot.legend()
     pyplot.savefig(filename + ".png")
     pyplot.close()
-
 
 #load cifar10 dataset into a a train and test set
 def load_dataset(valid_size=5000):
