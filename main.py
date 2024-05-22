@@ -26,12 +26,12 @@ def run_test_harness():
     model = dropout_model() # With dropout
     
     # fit model, should eventually get validation data from training data
-    history = model.fit(trainX, trainY, epochs=50, batch_size=64, validation_data=(validX, validY), verbose=1)
+    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(validX, validY), verbose=1)
     # evaluate model
     _, acc = model.evaluate(testX, testY, verbose=1)
     print('> %.3f' % (acc * 100.0))
     # learning curves
-    # summarize_diagnostics(history, "test_plot")
+    summarize_diagnostics(history, "dropout")
 
 def define_model():
     """
@@ -93,7 +93,7 @@ def dropout_model():
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-"""
+
 # plot diagnostic learning curves
 def summarize_diagnostics(history, filename):
     pyplot.figure(figsize=(7, 8))
@@ -112,7 +112,7 @@ def summarize_diagnostics(history, filename):
     pyplot.legend()
     pyplot.savefig(filename + ".png")
     pyplot.close()
-"""
+
 
 #load cifar10 dataset into a a train and test set
 def load_dataset(valid_size=5000):
