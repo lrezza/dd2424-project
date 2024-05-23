@@ -63,7 +63,10 @@ def run_augmentation_harness():
     print(steps)
     print(trainX.shape)     
     
-    history = model.fit(it_train, steps_per_epoch=steps, epochs=100, 
+    #epochs = 100 #for most models
+    epochs = 400 #for combined model
+
+    history = model.fit(it_train, steps_per_epoch=steps, epochs=epochs, 
                         validation_data=(validX, validY), verbose=1)
     
     # evaluate model
