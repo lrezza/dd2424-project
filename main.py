@@ -11,13 +11,14 @@ from keras.layers import MaxPooling2D
 from keras.layers import Dense
 from keras.layers import Flatten
 from keras.layers import Dropout  # Import Dropout layer
-from tensorflow.keras.optimizers import SGD, Adam, AdamW
+from tensorflow.keras.optimizers import SGD, Adam#, AdamW
+from tensorflow_addons.optimizers import AdamW
 from keras.regularizers import l2
 from keras.datasets import cifar10
-# from keras.preprocessing.image import ImageDataGenerator
-from keras.src.legacy.preprocessing.image import ImageDataGenerator
+from keras.preprocessing.image import ImageDataGenerator
+#from keras.src.legacy.preprocessing.image import ImageDataGenerator
 from keras.layers import BatchNormalization
-from keras.optimizers.schedules import CosineDecay, PiecewiseConstantDecay, CosineDecayRestarts
+from tensorflow.keras.optimizers.schedules import CosineDecay, PiecewiseConstantDecay, CosineDecayRestarts
 
 def main():
     # Choose which test harness to run
