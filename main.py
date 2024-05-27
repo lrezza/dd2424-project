@@ -1,3 +1,4 @@
+import keras.optimizers
 import numpy as np
 import math
 import time
@@ -16,11 +17,16 @@ from tensorflow_addons.optimizers import AdamW
 from keras.regularizers import l2
 from keras.datasets import cifar10
 from keras.preprocessing.image import ImageDataGenerator
-#from keras.src.legacy.preprocessing.image import ImageDataGenerator
+# from keras.src.legacy.preprocessing.image import ImageDataGenerator
 from keras.layers import BatchNormalization
-from tensorflow.keras.optimizers.schedules import CosineDecay, PiecewiseConstantDecay, CosineDecayRestarts
+#from keras.optimizers.schedules import CosineDecay, PiecewiseConstantDecay, CosineDecayRestarts
+from tensorflow.keras.optimizers.schedules import CosineDecay, PiecewiseConstantDecay, CosineDecayRestarts, ExponentialDecay
+import tensorflow
 
 def main():
+    #print(tensorflow.config.list_physical_devices('GPU'))
+    
+    
     # Choose which test harness to run
     time_init = time.time()
     #run_test_harness() # Uncomment for original, dropout or weight decay model 
@@ -106,7 +112,7 @@ def run_experimentation():
     Only ordering_complementary_test() uses the variable_model().
 
     """
-    epochs = 50 # TODO: Final run with 100 or 400
+    epochs = 100 # TODO: Final run with 100 or 400
     # (trainX, trainY), (validX, validY), (testX, testY) = load_dataset(zero_mean=False)
     #data = load_dataset(zero_mean=False)    # Combined for easier pass to run_and_evaluate()
     data = None
@@ -155,7 +161,8 @@ def run_experimentation():
         # (trainX, trainY), (validX, validY), (testX, testY) = load_dataset(zero_mean=False)
         # data = load_dataset(zero_mean=False)    # Combied for easier pass to run_and_evaluate()
 
-        optimizers = ['Adam', 'AdamW']
+        # optimizers = ['Adam', 'AdamW']
+        optimizers = ['AdamW'] # Single run test
 
         for optimizer in optimizers:
             run_and_evaluate('combined', data, optimizer=optimizer, filename=optimizer, suffix=f' for optimizer {optimizer}')
@@ -169,32 +176,38 @@ def run_experimentation():
         # w. Restarts: CosineDecayRestarts - use t_mul and m_mul
 
         # Cosine Annealing with Warm-Up
-        warmup_decay_lr = CosineDecay(initial_learning_rate=1e-6, decay_steps=10, alpha=0.1, warmup_target=1e-3, warmup_steps=10)
-        
+        #warmup_decay_lr = CosineDecay(initial_learning_rate=1e-6, decay_steps=10, alpha=0.1, warmup_target=1e-3, warmup_steps=10)
+        #warmup_decay_lr = CosineDecay(1e-6, 350, 0.1)#, name=None, warmup_target=1e-3, warmup_steps=50)
+        warmup_decay_lr = CosineDecay(0.1, 704*epochs) # Warmup incompatible / Not a key-value argument
+        # Exponential Decay, since Keras Cosine decay didn't 
+
         # Step Decay using 
-        boundaries = [25, 50, 75]
+        #boundaries = [25, 50, 75]   # Bad
+        #values = [0.1, 0.01, 0.001, 0.0001] # Bad
+        boundaries = [1400, 2800, 10000] # New Test Conf
         values = [0.1, 0.01, 0.001, 0.0001]
         step_decay_lr = PiecewiseConstantDecay(boundaries=boundaries, values=values)
 
         # Cosine Annealing with restarts
-        cosine_ann_lr = CosineDecayRestarts(initial_learning_rate=1e-6, first_decay_steps=10, t_mul=2.0, m_mul=1.0, alpha=0.0001)
+        first_decay_steps = 1000
+        cosine_ann_lr = CosineDecayRestarts(initial_learning_rate=0.1, first_decay_steps=first_decay_steps, t_mul=2.0, m_mul=1.0, alpha=0.0)
 
-        run_and_evaluate('variable', data, optimizer='SGD', filename='warm-up', suffix='for LR Warm-Up + Cosine', learning_rate=warmup_decay_lr)
-        run_and_evaluate('variable', data, optimizer='SGD', filename='step-decay', suffix='for LR Step Decay', learning_rate=step_decay_lr)
-        run_and_evaluate('variable', data, optimizer='SGD', filename='cosine-restart', suffix='for LR Cosine w. Restarts', learning_rate=cosine_ann_lr)
+        #run_and_evaluate('combined', data, optimizer='SGD', filename='cosine-decay', suffix='for LR Cosine Decay', learning_rate=warmup_decay_lr)
+        run_and_evaluate('combined', data, optimizer='SGD', filename='step-decay', suffix=' for LR Step Decay', learning_rate=step_decay_lr)
+        #run_and_evaluate('combined', data, optimizer='SGD', filename='cosine-restart', suffix=' for LR Cosine w. Restarts', learning_rate=cosine_ann_lr)
 
-        print("\n -- Optimizer experiment done --\n")
+        print("\n -- Learning rate experiment done --\n")
     
 
     def ordering_complementary_test():
         orders = ['pre', 'post']
-        filters = ['BatchNorm', 'Dropout', 'Both']
+        filters = ['BatchNorm', 'Dropout']
 
         #(X_train, Y_train), (X_valid, Y_valid), (X_test, Y_test) = load_dataset(zero_mean=False)
 
         # This test simply changes the order of BatchNorm and Dropout where applicable.
         print("\nOrdering Test\n")
-        run_and_evaluate('variable', data, optimizer='SGD', filename='post_order_test', suffix='for reverse order', order='post', filter=filters[2])
+        run_and_evaluate('variable', data, optimizer='SGD', filename='post_order_test', suffix='for reverse order', order='post', filter='both') # Both deac. filters
 
 
         # This uses the default order (pre) but filters out either BatchNorm or Dropout
@@ -206,12 +219,12 @@ def run_experimentation():
             filename = f'{order}_{filter}'
             run_and_evaluate('variable', data, optimizer='SGD', filename=filename, suffix=f' | order: {order} filter: {filter}', order=order, filter=filter)
         
-        print("\n -- Optimizer experiment done --\n")
+        print("\n -- Order/Complementary experiment done --\n")
     
     
     # Run tests
-    zero_mean_test()
-    #optimizer_variation_test()
+    #zero_mean_test()
+    optimizer_variation_test()
     #learning_rate_scheduler_test()
     #ordering_complementary_test()
 
@@ -353,7 +366,7 @@ def decay_model():
 
 def combined_model(optimizer: str='SGD', learning_rate=0.001):
     # Param: optimizer = ['SDG', 'Adam', 'AdamW']
-    print("ENTERED COMBINED")
+    # print("ENTERED COMBINED")
     model = Sequential()
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
     model.add(BatchNormalization())
@@ -385,7 +398,9 @@ def combined_model(optimizer: str='SGD', learning_rate=0.001):
     if optimizer == 'Adam':
         opt = Adam(learning_rate=0.001) # NOTE: Interpreted instructions to not include momentum
     elif optimizer == 'AdamW':
-        opt = AdamW(learning_rate=0.001)
+        learning_rate_aw = 0.01
+        weight_decay_aw = 0.004
+        opt = AdamW(learning_rate=learning_rate_aw, weight_decay=weight_decay_aw)
     #print("Opt type: ", type(opt))
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
@@ -398,18 +413,30 @@ def variable_model(optimizer: str='SGD', order: str='pre', filter: str='drop'):
     :param filter: BatchNorm/DropOut/Both - NOTE: filter is what to ADD, not what to filter away
     """
 
-    def add_filtered(model, order, filter, exception: bool=False):
+    def add_filtered(model, order, filter, exception: bool=False, placement=0, dropout_val=0.2):
         """
+        # 0 = Batch
+        # 1 = Dropout
         Adds only BatchNorm, Droputout or both based on the filter parameter.
         :param exception: Used by the input layer to avoid adding BatchNorm instad of nothing when using 'post' order
         :return: model
         """
+              
+        if (order == 'pre' and placement == 0) or (order == 'post' and placement == 1):
+            if filter != 'Dropout':
+                model.add(BatchNormalization())
+        elif (order == 'pre' and placement == 1) or (order == 'post' and placement == 0):
+            if filter != 'BatchNorm':
+                model.add(Dropout(dropout_val))
+
+        """
         if not filter == 'Dropout':
             if not exception:   # See function doc
-                model.add(BatchNormalization) if order == 'Pre' else model.add(Dropout(0.2))
+                model.add(BatchNormalization()) if order == 'Pre' else model.add(Dropout(0.2))
 
         if not filter == 'BatchNorm':
             model.add(Dropout(0.2)) if order == 'Pre' else model.add(BatchNormalization())
+        """
         
         return model
     
@@ -418,46 +445,37 @@ def variable_model(optimizer: str='SGD', order: str='pre', filter: str='drop'):
     print(type(order), type(filter))
 
     model = Sequential()
+
+    ## 1 ##
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
-    #if not filter == 'Dropout': model.add(BatchNormalization())
-    model = add_filtered(model, order, filter, exception=True)
-    
+    model = add_filtered(model, order, filter, placement=0, dropout_val=0.2)
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-    #if not filter == 'Dropout': model.add(BatchNormalization())
-    model = add_filtered(model, order, filter)
+    model = add_filtered(model, order, filter, placement=0, dropout_val=0.2)
     model.add(MaxPooling2D((2, 2)))
-    #if not filter == 'BatchNorm': model.add(Dropout(0.2))
-    model = add_filtered(model, order, filter)
+    model = add_filtered(model, order, filter, placement=1, dropout_val=0.2)
     
+    ## 2 ##
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-    #if not filter == 'Dropout': model.add(BatchNormalization())
-    model = add_filtered(model, order, filter)
-
+    model = add_filtered(model, order, filter, placement=0, dropout_val=0.3)
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-    #if not filter == 'Dropout': model.add(BatchNormalization())
-    model = add_filtered(model, order, filter)
+    model = add_filtered(model, order, filter, placement=0, dropout_val=0.3)
     model.add(MaxPooling2D((2, 2)))
-    #if not filter == 'BatchNorm': model.add(Dropout(0.3))
-    model = add_filtered(model, order, filter)
+    model = add_filtered(model, order, filter, placement=1, dropout_val=0.3)
     
+    ## 3 ##
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-    #if not filter == 'Dropout': model.add(BatchNormalization())
-    model = add_filtered(model, order, filter)
-
+    model = add_filtered(model, order, filter, placement=0, dropout_val=0.4)
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-    #if not filter == 'Dropout': model.add(BatchNormalization())
-    model = add_filtered(model, order, filter)
+    model = add_filtered(model, order, filter, placement=0, dropout_val=0.4)
     model.add(MaxPooling2D((2, 2)))
-    #if not filter == 'BatchNorm': model.add(Dropout(0.4))
-    model = add_filtered(model, order, filter)
+    model = add_filtered(model, order, filter, placement=1, dropout_val=0.4)
 
     model.add(Flatten())
     
+    ## FINAL ##
     model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
-    #if not filter == 'Dropout': model.add(BatchNormalization())
-    #if not filter == 'BatchNorm': model.add(Dropout(0.5))
-    model = add_filtered(model, order, filter)
-    model = add_filtered(model, order, filter)
+    model = add_filtered(model, order, filter, placement=0, dropout_val=0.5)
+    model = add_filtered(model, order, filter, placement=1, dropout_val=0.5)
     model.add(Dense(10, activation='softmax'))
 
     if optimizer == 'SGD':

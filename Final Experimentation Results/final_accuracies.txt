@@ -1,0 +1,34 @@
+epochs = 400
+____________
+zero-mean: 88.250 = 88.25% (Peaked at around 90%)
+    time: 3113.7 seconds | 51 min 53 seconds
+
+
+
+epochs = 100 each
+_________________
+optimizer_variation:
+    Adam:   0.8699 = 86.99%
+    (bad) AdamW:  0.4130 = 41.3% (should re-run)
+    (worse) AdamW: 0.2144 = 21.44% 
+time: 1510 seconds | 25 Min 10 seconds
+
+
+epochs = 100 each
+____________
+learning_rate_scheduling:
+    cosine:             0.8786 = 87.86%
+    (bad) step_decay:         0.4228 = 42.28% (should re-run, or try other values)
+    step_decay:         0.6443 = 64.42% 
+    cosine + restarts:  0.8450 = 84.50%
+time: not denoted
+
+
+
+epochs = 100 each
+____________
+order_filter:
+    post:           0.5949 = 59.49%
+    pre_batchN:     0.8394 = 83.94% 
+    pre_dropout:    0.8017 = 80.17%
+time: 2571 seconds | 42 Min 51 seconds

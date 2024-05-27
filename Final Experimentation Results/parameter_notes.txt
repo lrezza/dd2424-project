@@ -1,0 +1,23 @@
+optimizers:
+    AdamW:
+        initial_learning_rate: 0.001
+        weight_decay: 0.004
+
+learning_rate_scheduling:
+    cosine:
+        init: 0.1
+        steps: 704 * 100    (100 instead of 400 to speed up training while having enough to analyze)
+    
+    step_decay:
+        (bad) boundaries: [25, 50, 75]
+        (bad) values: [0.1, 0.01, 0.001, 0.0001]
+        boundaries: [1400, 2800, 10000]
+        values: [0.1, 0.01, 0.001, 0.0001]
+
+
+    cosine_restart: (pretty much default values)
+        init: 0.1
+        first_decay_steps: 1000
+        t_mul = 2.0
+        m_mul = 1.0
+        alpha = 0.0
